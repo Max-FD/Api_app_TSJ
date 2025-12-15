@@ -1,0 +1,154 @@
+Este es el script para crear la base de datos con la estructura que ocupa esta api, la app o la pagina web de este proyecto.
+el usuario creado junto con la base de datos es: Rodrigo 
+el correo asignado es:ejemplo01@gmail.com
+y su contraseña es:123
+
+-- ============================================
+-- CREACIÓN COMPLETA DEL SISTEMA DE RONDAS
+-- ============================================
+CREATE DATABASE  sistema_rondas;
+USE sistema_rondas;
+
+-- ============================================
+-- TABLAS PRINCIPALES
+-- ============================================
+
+-- TIPOS DE USUARIOS
+CREATE TABLE IF NOT EXISTS tipos_de_usuarios (
+    tipo_id INTEGER PRIMARY KEY AUTO_INCREMENT,
+    nombre_tipo_usuario VARCHAR(50) NOT NULL
+);
+
+-- USUARIOS
+CREATE TABLE IF NOT EXISTS usuarios (
+    id_usuario INTEGER PRIMARY KEY AUTO_INCREMENT,
+    id_tipo INTEGER NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    contrasena VARCHAR(255) NOT NULL,
+    correo VARCHAR(100),
+    FOREIGN KEY (id_tipo) REFERENCES tipos_de_usuarios(tipo_id)
+);
+
+-- TIPOS DE RONDA
+CREATE TABLE IF NOT EXISTS Tipo_ronda (
+    id_tipo INTEGER PRIMARY KEY AUTO_INCREMENT,
+    nombre_tipo_ronda VARCHAR(50) NOT NULL
+);
+
+-- COORDENADAS ADMIN (Puntos individuales con QR integrado)
+CREATE TABLE IF NOT EXISTS Coordenadas_admin (
+    id_coordenada_admin INTEGER PRIMARY KEY AUTO_INCREMENT,
+    latitud DECIMAL(10, 8) NULL,
+    longitud DECIMAL(11, 8) NULL,
+    codigo_qr VARCHAR(255) UNIQUE NULL,
+    nombre_coordenada VARCHAR(100) NOT NULL,
+    fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================
+-- TABLAS DE RUTAS Y RELACIONES
+-- ============================================
+
+-- RUTAS (colección de coordenadas)
+CREATE TABLE IF NOT EXISTS Rutas (
+    id_ruta INTEGER PRIMARY KEY AUTO_INCREMENT,
+    nombre_ruta VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- RELACIÓN RUTA - COORDENADAS (orden específico)
+CREATE TABLE IF NOT EXISTS Ruta_coordenadas (
+    id_ruta INTEGER NOT NULL,
+    id_coordenada_admin INTEGER NOT NULL,
+    orden INTEGER NOT NULL,
+    PRIMARY KEY (id_ruta, id_coordenada_admin),
+    FOREIGN KEY (id_ruta) REFERENCES Rutas(id_ruta) ON DELETE CASCADE,
+    FOREIGN KEY (id_coordenada_admin) REFERENCES Coordenadas_admin(id_coordenada_admin) ON DELETE CASCADE
+);
+
+-- ============================================
+-- TABLAS DE RONDAS
+-- ============================================
+
+-- RONDA ASIGNADA (asignación de rutas a guardias)
+CREATE TABLE IF NOT EXISTS Ronda_asignada (
+    id_ronda_asignada INTEGER PRIMARY KEY AUTO_INCREMENT,
+    id_tipo INTEGER NOT NULL,
+    id_usuario INTEGER NOT NULL,
+    id_ruta INTEGER NOT NULL,
+    fecha_de_ejecucion DATE NOT NULL,
+    hora_de_ejecucion TIME NOT NULL,
+    distancia_permitida DECIMAL(6, 2) NOT NULL,
+    FOREIGN KEY (id_tipo) REFERENCES Tipo_ronda(id_tipo),
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario),
+    FOREIGN KEY (id_ruta) REFERENCES Rutas(id_ruta)
+);
+
+-- RONDAS DE USUARIOS (ejecución real)
+CREATE TABLE IF NOT EXISTS rondas_usuarios (
+    id_ronda_usuario INTEGER PRIMARY KEY AUTO_INCREMENT,
+    id_usuario INTEGER NOT NULL,
+    id_ronda_asignada INTEGER NOT NULL,
+    fecha DATE NOT NULL,
+    hora_inicio TIME NOT NULL,
+    hora_final TIME,
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario),
+    FOREIGN KEY (id_ronda_asignada) REFERENCES Ronda_asignada(id_ronda_asignada)
+);
+
+-- COORDENADAS DE USUARIOS (tracking de posiciones durante rondas)
+CREATE TABLE IF NOT EXISTS coordenadas_usuarios (
+    id INTEGER PRIMARY KEY AUTO_INCREMENT,
+    id_ronda_usuario INTEGER NOT NULL,
+    hora_actual TIME NOT NULL,
+    latitud_actual DECIMAL(10, 8),
+    longitud_actual DECIMAL(11, 8),
+    codigo_qr VARCHAR(255),
+    verificador TINYINT NOT NULL DEFAULT 0,
+    FOREIGN KEY (id_ronda_usuario) REFERENCES rondas_usuarios(id_ronda_usuario)
+);
+
+-- ============================================
+-- ÍNDICES PARA OPTIMIZACIÓN
+-- ============================================
+
+CREATE INDEX idx_rondas_usuarios_id_usuario ON rondas_usuarios(id_usuario);
+CREATE INDEX idx_coordenadas_usuarios_id_ronda ON coordenadas_usuarios(id_ronda_usuario);
+CREATE INDEX idx_ronda_asignada_id_usuario ON Ronda_asignada(id_usuario);
+CREATE INDEX idx_ronda_asignada_ruta ON Ronda_asignada(id_ruta);
+CREATE INDEX idx_ruta_coordenadas_ruta ON Ruta_coordenadas(id_ruta);
+CREATE INDEX idx_ruta_coordenadas_orden ON Ruta_coordenadas(id_ruta, orden);
+
+-- ============================================
+-- DATOS INICIALES
+-- ============================================
+
+-- Tipos de usuarios
+INSERT INTO tipos_de_usuarios (tipo_id, nombre_tipo_usuario) VALUES
+(1, 'Guardia'),
+(2, 'Encargado'),
+(3, 'Administrador');
+
+-- Tipos de rondas
+INSERT INTO Tipo_ronda (id_tipo, nombre_tipo_ronda) VALUES
+(1, 'Externo'),
+(2, 'Interno');
+
+INSERT INTO usuarios (id_tipo, nombre, contrasena, correo)
+VALUES (
+  3, 
+  'Rodrigo', 
+  '$2y$10$xxrSOpVXcfmIyjsBU5Z1y.VQJfqMW0NqjmqEw8mxixdX1okAl7rXO', 
+  'ejemplo01@gmail.com'
+);
+-- modificacion improvisada 
+ALTER TABLE rondas_usuarios 
+ADD COLUMN sincronizada TINYINT NOT NULL DEFAULT 0;
+CREATE INDEX idx_sincronizada ON rondas_usuarios(sincronizada);
+
+
+
+-- ============================================
+-- FIN DEL SCRIPT
+-- ============================================
